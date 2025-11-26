@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Login Success</title>
+</head>
+<body>
+  <h3>Login Success. You can close this window.</h3>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (token && window.opener && window.opener.CMSOAuthCallback) {
+      window.opener.CMSOAuthCallback({ token });
+      window.close();
+    } else {
+      document.body.innerText = 'Login complete. Please close this window.';
+    }
+  </script>
+</body>
+</html>

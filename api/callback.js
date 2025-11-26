@@ -1,8 +1,6 @@
-/* ========================
-   File: api/callback.js
-   Purpose: Exchange code for access token and return token to popup
-   ======================== */
+import fetch from 'node-fetch';
 
+/* Exchange code for GitHub access token */
 async function exchangeCodeForToken(code, redirect_uri) {
   const params = new URLSearchParams({
     client_id: process.env.GITHUB_CLIENT_ID,
@@ -16,8 +14,9 @@ async function exchangeCodeForToken(code, redirect_uri) {
     headers: { Accept: 'application/json' },
     body: params
   });
+
   const data = await resp.json();
-  return data; // { access_token, token_type, scope } or { error }
+  return data;
 }
 
 export default async function handler(req, res) {
@@ -29,26 +28,26 @@ export default async function handler(req, res) {
     const redirectUri = process.env.OAUTH_REDIRECT_URI || `${origin}/callback`;
 
     const tokenResp = await exchangeCodeForToken(code, redirectUri);
-    if (tokenResp.error) {
-      console.error('OAuth error', tokenResp);
-      return res.status(500).send('OAuth error');
-    }
+    if (tokenResp.error) return res.status(500).send('OAuth error');
 
     const token = tokenResp.access_token;
     if (!token) return res.status(500).send('No access token received');
 
-    // Return a small HTML page that posts the token back to the opener window and closes
+    // HTML that passes token to CMS and closes popup
     const html = `<!doctype html>
 <html>
   <head><meta charset="utf-8"><title>OAuth Complete</title></head>
   <body>
+    <h3>Login Success. You can close this window.</h3>
     <script>
-      (function(){
-        function receiveMessage(e){ /* no-op - not used */ }
-        window.opener.postMessage({ type: 'decap-oauth', token: '${token}' }, '*');
-        // fallback: write token to page so manual copy is possible
-        document.body.innerText = 'Login complete. You can close this window.';
-        setTimeout(function(){ window.close(); }, 1000);
+      (function() {
+        const token = '${token}';
+        if (window.opener && window.opener.CMSOAuthCallback) {
+          window.opener.CMSOAuthCallback({ token: token });
+          window.close();
+        } else {
+          document.body.innerText = 'Login complete. Please close this window.';
+        }
       })();
     </script>
   </body>
