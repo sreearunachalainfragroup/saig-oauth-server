@@ -2,7 +2,7 @@ export default function handler(req, res) {
   const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
   const SERVER_URL = process.env.SERVER_URL;
 
-  const redirect = `${SERVER_URL}/callback`;
+  const redirect = `${SERVER_URL}`;
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
