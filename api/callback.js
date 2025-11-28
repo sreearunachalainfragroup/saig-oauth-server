@@ -1,41 +1,69 @@
+// api/callback.js
 import fetch from "node-fetch";
 
-async function getToken(code, redirect) {
+async function exchangeCodeForToken(code, redirectUri) {
   const params = new URLSearchParams({
     client_id: process.env.GITHUB_CLIENT_ID,
     client_secret: process.env.GITHUB_CLIENT_SECRET,
     code,
-    redirect_uri: redirect
+    redirect_uri: redirectUri
   });
 
-  const res = await fetch("https://github.com/login/oauth/access_token", {
+  const response = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: { Accept: "application/json" },
     body: params
   });
 
-  return res.json();
+  return response.json();
 }
 
 export default async function handler(req, res) {
-  const code = req.query.code;
-  const SERVER_URL = process.env.SERVER_URL;
+  try {
+    const code = req.query.code;
+    const SERVER_URL = process.env.SERVER_URL;
 
-  const redirect = `${SERVER_URL}/callback`;
+    if (!code) return res.status(400).send("Missing code");
 
-  const token = await getToken(code, redirect);
+    const redirectUri = `${SERVER_URL}/callback`;
 
-  const html = `
+    const tokenResponse = await exchangeCodeForToken(code, redirectUri);
+
+    if (tokenResponse.error || !tokenResponse.access_token) {
+      console.error("OAuth Error:", tokenResponse);
+      return res.status(500).send("OAuth token exchange failed");
+    }
+
+    const accessToken = tokenResponse.access_token;
+
+    const html = `
 <!doctype html>
 <html>
+  <head>
+    <meta charset="utf-8" />
+    <title>OAuth Complete</title>
+  </head>
   <body>
+    <h3>Login Successful. You can close this window.</h3>
     <script>
-      window.opener.CMSOAuthCallback({ token: "${token.access_token}" });
-      window.close();
+      (function() {
+        const token = "${accessToken}";
+        if (window.opener && window.opener.CMSOAuthCallback) {
+          window.opener.CMSOAuthCallback({ token: token });
+          window.close();
+        } else {
+          document.body.innerHTML =
+            "<p>Token received. Please close this window manually.</p>";
+        }
+      })();
     </script>
   </body>
 </html>`;
 
-  res.setHeader("Content-Type", "text/html");
-  res.send(html);
+    res.setHeader("Content-Type", "text/html");
+    return res.status(200).send(html);
+  } catch (err) {
+    console.error("Callback Error:", err);
+    return res.status(500).send("Server error");
+  }
 }
