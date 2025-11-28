@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     <script>
       window.opener.postMessage(
         JSON.stringify({ token: "${tokenData.access_token}" }),
-        "https://saig-vercel-repo.vercel.app"
+        "*"
       );
       window.close();
     </script>
