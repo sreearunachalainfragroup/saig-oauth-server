@@ -31,12 +31,13 @@ export default async function handler(req, res) {
   <body>
     <script>
       window.opener.postMessage(
-        JSON.stringify({
-        type: "decap-auth",
-        token: "${tokenData.access_token}"
-      }),
+      {
+        type: "decap-oauth",
+        data: { token: "${tokenData.access_token}" }
+      },
       "*"
       );
+
       window.close();
     </script>
   </body>
