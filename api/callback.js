@@ -41,55 +41,38 @@ export default async function handler(req, res) {
     const redirectUri = `${SERVER_URL}/callback`;
     const token = await getToken(code, redirectUri);
 
-    // Return an HTML page that posts the exact message Decap expects,
-    // tries to send to the opener's true origin if accessible, falls back to "*",
-    // and waits a short moment before closing to allow the opener to handle it.
+    // Explicit frontend origin — replace with your CMS URL
+    const FRONTEND_ORIGIN = "https://saig-vercel-repo.vercel.app";
+
     const html = `
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>OAuth callback</title>
+    <title>OAuth Callback</title>
   </head>
   <body>
     <script>
-      (function(){
+      (function() {
         try {
-          var token = "${token}";
+          var token = "${encodeURIComponent(token)}";
           var msg = "authorizing:github:" + token;
+          console.log("Sending OAuth token to parent window...");
 
-          // Try to read the opener's origin safely
-          var targetOrigin = "*";
-          try {
-            // Accessing opener.location might throw if cross-origin
-            var openerOrigin = window.opener && window.opener.location && window.opener.location.origin;
-            if (openerOrigin) {
-              targetOrigin = openerOrigin;
-            }
-          } catch (e) {
-            // ignore — we'll use "*" below
-            targetOrigin = "*";
+          // Ensure opener exists
+          if (window.opener) {
+            // Send message multiple times for reliability
+            window.opener.postMessage(msg, "${FRONTEND_ORIGIN}");
+            setTimeout(() => {
+              window.opener.postMessage(msg, "${FRONTEND_ORIGIN}");
+              console.log("OAuth token sent. Closing popup...");
+              window.close();
+            }, 200);
+          } else {
+            document.body.innerText = "No parent window found. Token: " + token;
           }
-
-          console.log("OAuth callback: sending token. targetOrigin=", targetOrigin);
-
-          // Send the message twice with different targetRestrictions to maximize chance of delivery
-          try {
-            window.opener.postMessage(msg, targetOrigin);
-          } catch (e) {
-            // fallback to wildcard
-            try { window.opener.postMessage(msg, "*"); } catch(e2) { console.error("postMessage failed", e2); }
-          }
-
-          // Also send a second short-delayed message to increase reliability
-          setTimeout(function(){
-            try { window.opener.postMessage(msg, targetOrigin); } catch(e){ try{ window.opener.postMessage(msg, "*"); }catch(e2){ } }
-          }, 250);
-
-          // Give the opener a moment to handle the message, then close
-          setTimeout(function(){ window.close(); }, 600);
         } catch (err) {
-          console.error("OAuth callback page error:", err);
+          console.error("OAuth callback error:", err);
           document.body.innerText = "OAuth callback error: " + err;
         }
       })();
@@ -98,7 +81,7 @@ export default async function handler(req, res) {
 </html>`;
 
     res.setHeader("Content-Type", "text/html");
-    res.send(html);
+    res.status(200).send(html);
   } catch (err) {
     console.error("OAuth callback error:", err);
     res.status(500).send("<h2>OAuth Callback Error</h2><pre>" + err.message + "</pre>");
