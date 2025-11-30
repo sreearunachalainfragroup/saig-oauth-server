@@ -25,10 +25,11 @@ async function getToken(code, redirectUri) {
 
 export default async function handler(req, res) {
   try {
-    // Use WHATWG URL API
-    const reqUrl = new URL(req.url, `http://${req.headers.host}`);
-    const code = reqUrl.searchParams.get("code");
+    // FIX: Correct protocol (Vercel uses https)
+    const protocol = req.headers["x-forwarded-proto"] || "https";
+    const reqUrl = new URL(req.url, `${protocol}://${req.headers.host}`);
 
+    const code = reqUrl.searchParams.get("code");
     if (!code) {
       return res.status(400).send(`
         <h2>OAuth Error</h2>
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
 
     const redirectUri = `${SERVER_URL}/callback`;
 
-    // Fetch the GitHub access token
+    // This now returns the RAW token string. Fetch the GitHub access token
     const token = await getToken(code, redirectUri);
 
     // HTML to send token back to CMS
