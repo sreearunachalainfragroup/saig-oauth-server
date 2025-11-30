@@ -30,10 +30,11 @@ export default async function handler(req, res) {
 <html>
   <body>
     <script>
+    console.log("📌 Sending OAuth token back to CMS…");
       window.opener.postMessage(
       {
         type: "authorization_response",
-        data: { token: "${tokenData.access_token}" }
+        response: { token: "${token}" }
       },
       "*"
       );
