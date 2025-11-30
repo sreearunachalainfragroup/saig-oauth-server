@@ -25,41 +25,59 @@ async function getToken(code, redirectUri) {
 
 export default async function handler(req, res) {
   try {
-    
-  const code = req.query.code;
-  const SERVER_URL = process.env.SERVER_URL;
+    // Use WHATWG URL API
+    const reqUrl = new URL(req.url, `http://${req.headers.host}`);
+    const code = reqUrl.searchParams.get("code");
 
-  const redirectUri = `${SERVER_URL}/callback`;
+    if (!code) {
+      return res.status(400).send(`
+        <h2>OAuth Error</h2>
+        <p>Missing OAuth code in request.</p>
+      `);
+    }
 
-  // Fetch the access token from GitHub
-  const tokenData = await getToken(code, redirectUri);
-  // Fetch the token
-  const token = tokenData.access_token;
+    const SERVER_URL = process.env.SERVER_URL;
+    if (!SERVER_URL) {
+      return res.status(500).send(`
+        <h2>Server Error</h2>
+        <p>Server URL not configured.</p>
+      `);
+    }
 
-  const html = `
+    const redirectUri = `${SERVER_URL}/callback`;
+
+    // Fetch the GitHub access token
+    const token = await getToken(code, redirectUri);
+
+    // HTML to send token back to CMS
+    const html = `
 <!doctype html>
 <html>
   <body>
     <script>
-    console.log("Sending OAuth token back to CMS…");
+      console.log("Sending OAuth token back to CMS…");
       window.opener.postMessage(
-      {
-        type: "authorization_response",
-        response: { token: "${token}" }
-      },
-      "*"
+        {
+          type: "authorization_response",
+          response: { token: "${token}" }
+        },
+        "*"
       );
-
       window.close();
     </script>
   </body>
 </html>`;
 
-  res.setHeader("Content-Type", "text/html");
-  res.send(html);
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
 
-  } catch {
-    console.error("OAuth callback error:----callback.js-->", err);
-    res.status(500).send("Internal Server Error");
+  } catch (err) {
+    console.error("OAuth callback error:", err);
+    // User-friendly error page
+    res.status(500).send(`
+      <h2>OAuth Callback Error</h2>
+      <p>Something went wrong while processing the OAuth callback.</p>
+      <pre>${err.message}</pre>
+    `);
   }
 }
