@@ -58,11 +58,8 @@ export default async function handler(req, res) {
     <script>
       console.log("Sending OAuth token back to CMS…");
       window.opener.postMessage(
-        {
-          type: "authorization_response",
-          response: { token: "${token}" }
-        },
-        "*"
+        "authorizing:github:${token}",
+        window.location.origin
       );
       window.close();
     </script>
@@ -74,11 +71,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("OAuth callback error:", err);
-    // User-friendly error page
-    res.status(500).send(`
-      <h2>OAuth Callback Error</h2>
-      <p>Something went wrong while processing the OAuth callback.</p>
-      <pre>${err.message}</pre>
-    `);
+    res.status(500).send("<h2>OAuth Callback Error</h2><pre>" + err.message + "</pre>");
   }
 }
