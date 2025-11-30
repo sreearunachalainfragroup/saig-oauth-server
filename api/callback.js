@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     <script>
       window.opener.postMessage(
       {
-        type: "decap-oauth",
+        type: "authorization_response",
         data: { token: "${tokenData.access_token}" }
       },
       "*"
